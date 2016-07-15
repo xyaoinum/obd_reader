@@ -1,0 +1,1 @@
+On rare cases, the first time running of "Start Live Data" will get incorrect result, and restarting it will solve the problem. In the worst case, we could enforce it to run 2 times to solve this problem.

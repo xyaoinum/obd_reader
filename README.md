@@ -1,1 +1,1 @@
-On rare cases, the first time running of "Start Live Data" will get incorrect result, and restarting it will solve the problem. In the worst case, we could enforce it to run 2 times to solve this problem.
+issue: Whenever connecting to an bluetooth device, the UI will be unresponsive for 0.5 - 3 seconds, depending on how long it takes to connect to the device. This issue also exists in the original obd-reader app.

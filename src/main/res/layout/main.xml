@@ -5,68 +5,106 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_margin="@dimen/activity_horizontal_margin"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:weightSum="1">
 
-    <ScrollView
-        android:id="@+id/data_scroll"
-        android:layout_width="fill_parent"
-        android:layout_height="0dp"
-        android:layout_gravity="top"
-        android:layout_margin="10dp"
-        android:layout_weight="1"
-        android:elevation="2dp"
-        android:outlineProvider="bounds"
-        android:fillViewport="false">
-
-        <TableLayout
-            android:id="@+id/data_table"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:stretchColumns="*"></TableLayout>
-    </ScrollView>
-
-    <TableRow
-        android:layout_width="fill_parent"
+    <TableLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <TextView
-            android:layout_width="0dp"
+        <TableRow
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:text="Status: "
+                android:id="@+id/textView"
+                android:layout_column="9" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:text="Disconnected"
+                android:id="@+id/status_value"
+                android:layout_column="10" />
+
+        </TableRow>
+
+        <TableRow
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:text="Vehicle Speed: "
+                android:id="@+id/textView2"
+                android:layout_column="9" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:text="N/A"
+                android:id="@+id/vehicle_speed_value"
+                android:layout_column="10" />
+
+        </TableRow>
+
+
+        <TableRow
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:text="Engine RPM: "
+                android:id="@+id/textView3"
+                android:layout_column="9" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:text="N/A"
+                android:id="@+id/engine_rpm_value"
+                android:layout_column="10" />
+        </TableRow>
+    </TableLayout>
+
+
+
+    <RadioGroup
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:weightSum="1">
+        <RadioButton android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="@string/text_bluetooth"
-            android:textSize="@dimen/abc_text_size_medium_material" />
-
-        <TextView
-            android:layout_width="0dp"
+            android:id="@+id/radio1" android:checked="true"
+            android:text="RadioButton1"
+            android:layout_weight="0.1"/>
+        <RadioButton android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="@string/text_obd"
-            android:textSize="@dimen/abc_text_size_medium_material" />
-
-
-    </TableRow>
-
-    <TableRow
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content">
-
-        <TextView
-            android:id="@+id/BT_STATUS"
-            android:layout_width="0dp"
+            android:id="@+id/radio2" android:checked="true"
+            android:text="RadioButton2"
+            android:layout_weight="0.1"/>
+        <RadioButton android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="" />
-
-        <TextView
-            android:id="@+id/OBD_STATUS"
-            android:layout_width="0dp"
+            android:id="@+id/radio3" android:checked="true"
+            android:text="RadioButton3"
+            android:layout_weight="0.1"/>
+        <RadioButton android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:text="" />
-    </TableRow>
+            android:id="@+id/radio4" android:checked="true"
+            android:text="RadioButton4"
+            android:layout_weight="0.1"/>
+
+    </RadioGroup>
 
 </LinearLayout>

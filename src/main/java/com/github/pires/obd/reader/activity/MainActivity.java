@@ -1,39 +1,28 @@
 package com.github.pires.obd.reader.activity;
 
+import android.app.AlarmManager;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.content.ComponentName;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.ServiceConnection;
+import android.content.IntentFilter;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.IBinder;
-import android.os.PowerManager;
-import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
-import android.view.ViewGroup.MarginLayoutParams;
-import android.widget.LinearLayout;
-import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.github.pires.obd.commands.SpeedCommand;
-import com.github.pires.obd.commands.engine.RPMCommand;
-import com.github.pires.obd.enums.AvailableCommandNames;
 import com.github.pires.obd.reader.R;
-import com.github.pires.obd.reader.io.ObdCommandJob;
-import com.github.pires.obd.reader.io.ObdGatewayService;
+import com.github.pires.obd.reader.service.AlarmReceiver;
+import com.github.pires.obd.reader.service.ObdGatewayService;
 import com.github.pires.obd.reader.shared.BluetoothPreferences;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Set;
 
 import roboguice.RoboGuice;
@@ -41,189 +30,95 @@ import roboguice.activity.RoboActivity;
 import roboguice.inject.ContentView;
 import roboguice.inject.InjectView;
 
+
 @ContentView(R.layout.main)
 public class MainActivity extends RoboActivity {
 
-    private static final int START_LIVE_DATA = 1;
-    private static final int STOP_LIVE_DATA = 2;
-    private static final int SELECT_OBD_DEVICE = 3;
-    private static boolean bluetoothDefaultIsEnable = false;
+    private static final int SELECT_OBD_DEVICE = 1;
+
+    private AlarmManager alarmMgr;
+    private PendingIntent alarmIntent;
+
+    @InjectView(R.id.vehicle_speed_value)
+    private TextView vehicleSpeedTextView;
+    @InjectView(R.id.engine_rpm_value)
+    private TextView engineRPMTextView;
+    @InjectView(R.id.status_value)
+    private TextView statusTextView;
+
+    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+
+            String vehicle_speed = intent.getStringExtra("Vehicle Speed");
+            String engine_rpm = intent.getStringExtra("Engine RPM");
+            String status = intent.getStringExtra("status");
+
+            if(status != null) {
+                final String remoteDevice = BluetoothPreferences.getPairedAddress(getApplicationContext());
+                if(remoteDevice == null){
+                    statusTextView.setText("Disconnected");
+                }else{
+                    statusTextView.setText(status);
+                }
+            }
+
+            if(vehicle_speed != null){
+                vehicleSpeedTextView.setText(vehicle_speed);
+            }
+
+            if(engine_rpm != null){
+                engineRPMTextView.setText(engine_rpm);
+            }
+        }
+    };
+
 
     static {
         RoboGuice.setUseAnnotationDatabases(false);
-    }
-
-    @InjectView(R.id.BT_STATUS)
-    private TextView btStatusTextView;
-    @InjectView(R.id.OBD_STATUS)
-    private TextView obdStatusTextView;
-    @InjectView(R.id.vehicle_view)
-    private LinearLayout vv;
-    @InjectView(R.id.data_table)
-    private TableLayout tl;
-
-    private PowerManager powerManager;
-    private boolean isServiceBound;
-    private ObdGatewayService service;
-    private final Runnable mQueueCommands = new Runnable() {
-        public void run() {
-            if (service != null && service.isRunning() && service.queueEmpty()) {
-                queueCommands();
-            }
-            // run again in 2s
-            new Handler().postDelayed(mQueueCommands, 2000);
-        }
-    };
-    private PowerManager.WakeLock wakeLock = null;
-    private boolean preRequisites = true;
-    private ServiceConnection serviceConn = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName className, IBinder binder) {
-            isServiceBound = true;
-            service = ((ObdGatewayService.ObdGatewayServiceBinder) binder).getService();
-            service.setContext(MainActivity.this);
-            try {
-                service.startService();
-                if (preRequisites)
-                    btStatusTextView.setText(getString(R.string.status_bluetooth_connected));
-            } catch (IOException ioe) {
-                btStatusTextView.setText(getString(R.string.status_bluetooth_error_connecting));
-                doUnbindService();
-            }
-        }
-
-        @Override
-        protected Object clone() throws CloneNotSupportedException {
-            return super.clone();
-        }
-
-        // This method is *only* called when the connection to the service is lost unexpectedly
-        // and *not* when the client unbinds (http://developer.android.com/guide/components/bound-services.html)
-        // So the isServiceBound attribute should also be set to false when we unbind from the service.
-        @Override
-        public void onServiceDisconnected(ComponentName className) {
-            isServiceBound = false;
-        }
-    };
-
-    public static String LookUpCommand(String txt) {
-        for (AvailableCommandNames item : AvailableCommandNames.values()) {
-            if (item.getValue().equals(txt)) return item.name();
-        }
-        return txt;
-    }
-
-    public void stateUpdate(final ObdCommandJob job) {
-
-        final String cmdName = job.getCommand().getName();
-        String cmdResult = "";
-        final String cmdID = LookUpCommand(cmdName);
-
-        if (job.getState().equals(ObdCommandJob.ObdCommandJobState.EXECUTION_ERROR)) {
-            cmdResult = job.getCommand().getResult();
-            if (cmdResult != null && isServiceBound) {
-                obdStatusTextView.setText(cmdResult.toLowerCase());
-            }
-        } else if (job.getState().equals(ObdCommandJob.ObdCommandJobState.BROKEN_PIPE)) {
-            if (isServiceBound)
-                stopLiveData();
-        } else if (job.getState().equals(ObdCommandJob.ObdCommandJobState.NOT_SUPPORTED)) {
-            cmdResult = getString(R.string.status_obd_no_support);
-        } else {
-            cmdResult = job.getCommand().getFormattedResult();
-            if(isServiceBound)
-                obdStatusTextView.setText(getString(R.string.status_obd_data));
-        }
-
-        if (vv.findViewWithTag(cmdID) != null) {
-            TextView existingTV = (TextView) vv.findViewWithTag(cmdID);
-            existingTV.setText(cmdResult);
-        } else {
-            addTableRow(cmdID, cmdName, cmdResult);
-        }
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);;
-        final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (btAdapter != null) {
-            bluetoothDefaultIsEnable = btAdapter.isEnabled();
-        }
+        alarmMgr = (AlarmManager)getApplicationContext().getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(getApplicationContext(), AlarmReceiver.class);
+        alarmIntent = PendingIntent.getBroadcast(getApplicationContext(), 0, intent, 0);
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(System.currentTimeMillis());
+        alarmMgr.setRepeating(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(),
+                1000 * 10, alarmIntent);
 
-        obdStatusTextView.setText(getString(R.string.status_obd_disconnected));
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-
-        releaseWakeLockIfHeld();
-        if (isServiceBound) {
-            doUnbindService();
-        }
-
-        final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (btAdapter != null && btAdapter.isEnabled() && !bluetoothDefaultIsEnable)
-            btAdapter.disable();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        releaseWakeLockIfHeld();
-    }
-
-    /**
-     * If lock is held, release. Lock will be held when the service is running.
-     */
-    private void releaseWakeLockIfHeld() {
-        if (wakeLock.isHeld())
-            wakeLock.release();
-    }
-
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
-        wakeLock = powerManager.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK,
-                "ObdReader");
+
+        registerReceiver(broadcastReceiver, new IntentFilter(ObdGatewayService.BROADCAST_ACTION));
 
         // get Bluetooth device
         final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
-
-        preRequisites = btAdapter != null && btAdapter.isEnabled();
-        if (!preRequisites) {
-            preRequisites = btAdapter != null && btAdapter.enable();
-        }
-
-        if(!preRequisites){
-            btStatusTextView.setText(getString(R.string.status_bluetooth_disabled));
-        }else {
-            btStatusTextView.setText(getString(R.string.status_bluetooth_ok));
+        if (btAdapter != null && !btAdapter.isEnabled()) {
+            btAdapter.enable();
         }
     }
 
+    @Override
+    public void onPause() {
+        super.onPause();
+        unregisterReceiver(broadcastReceiver);
+    }
+
+
     public boolean onCreateOptionsMenu(Menu menu) {
-        menu.add(0, START_LIVE_DATA, 0, getString(R.string.menu_start_live_data));
-        menu.add(0, STOP_LIVE_DATA, 0, getString(R.string.menu_stop_live_data));
         menu.add(0, SELECT_OBD_DEVICE, 0, getString(R.string.menu_select_obd_device));
         return true;
     }
 
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case START_LIVE_DATA:
-                startLiveData();
-                return true;
-            case STOP_LIVE_DATA:
-                stopLiveData();
-                return true;
             case SELECT_OBD_DEVICE:
                 obdSelectionDialog();
                 return true;
@@ -231,26 +126,9 @@ public class MainActivity extends RoboActivity {
         return false;
     }
 
-    private void startLiveData() {
-        tl.removeAllViews(); //start fresh
-        doBindService();
-
-        // start command execution
-        new Handler().post(mQueueCommands);
-
-        // screen won't turn off until wakeLock.release()
-        wakeLock.acquire();
-    }
-
-    private void stopLiveData() {
-        doUnbindService();
-        releaseWakeLockIfHeld();
-    }
-
     private void obdSelectionDialog() {
 
         final BluetoothAdapter btAdapter = BluetoothAdapter.getDefaultAdapter();
-
         if (btAdapter == null || !btAdapter.isEnabled()) {
             Toast.makeText(this,
                     "Please enable Bluetooth.",
@@ -291,81 +169,13 @@ public class MainActivity extends RoboActivity {
                 .setSingleChoiceItems(cs, cur_cursor, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         BluetoothPreferences.setPairedAddress(getApplicationContext(),pairedDeviceAddresses.get(which));
+                        statusTextView.setText("Connecting...");
+                        stopService(new Intent(getApplicationContext(), ObdGatewayService.class));
+                        dialog.cancel();
                     }
                 });
         AlertDialog dialog = builder.create();
         dialog.show();
-    }
-
-
-    public boolean onPrepareOptionsMenu(Menu menu) {
-        MenuItem startItem = menu.findItem(START_LIVE_DATA);
-        MenuItem stopItem = menu.findItem(STOP_LIVE_DATA);
-        MenuItem obdItem = menu.findItem(SELECT_OBD_DEVICE);
-
-        if (service != null && service.isRunning()) {
-            startItem.setEnabled(false);
-            stopItem.setEnabled(true);
-            obdItem.setEnabled(false);
-        } else {
-            startItem.setEnabled(true);
-            stopItem.setEnabled(false);
-            obdItem.setEnabled(true);
-        }
-
-        return true;
-    }
-
-    private void addTableRow(String id, String key, String val) {
-
-        TableRow tr = new TableRow(this);
-
-
-        MarginLayoutParams params = new ViewGroup.MarginLayoutParams(
-                LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
-
-        tr.setLayoutParams(params);
-
-        TextView name = new TextView(this);
-        name.setGravity(Gravity.RIGHT);
-        name.setText(key + ": ");
-        TextView value = new TextView(this);
-        value.setGravity(Gravity.LEFT);
-        value.setText(val);
-        value.setTag(id);
-        tr.addView(name);
-        tr.addView(value);
-        tl.addView(tr, params);
-    }
-
-    private void queueCommands() {
-        if (isServiceBound) {
-            service.queueJob(new ObdCommandJob(new SpeedCommand()));
-            service.queueJob(new ObdCommandJob(new RPMCommand()));
-        }
-    }
-
-    private void doBindService() {
-        if (!isServiceBound) {
-            if (preRequisites) {
-                btStatusTextView.setText(getString(R.string.status_bluetooth_connecting));
-                Intent serviceIntent = new Intent(this, ObdGatewayService.class);
-                bindService(serviceIntent, serviceConn, Context.BIND_AUTO_CREATE);
-            }
-        }
-    }
-
-    private void doUnbindService() {
-        if (isServiceBound) {
-            if (service.isRunning()) {
-                service.stopService();
-                if (preRequisites)
-                    btStatusTextView.setText(getString(R.string.status_bluetooth_ok));
-            }
-            unbindService(serviceConn);
-            isServiceBound = false;
-            obdStatusTextView.setText(getString(R.string.status_obd_disconnected));
-        }
     }
 
 }

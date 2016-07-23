@@ -9,8 +9,7 @@
     <string name="service_stopped">OBD connection has stopped.</string>
     <string name="dialog_loading_title">Loading…</string>
     <string name="dialog_loading_body">Loading application View, please wait…</string>
-    <string name="menu_start_live_data">Start Live Data</string>
-    <string name="menu_stop_live_data">Stop Live Data</string>
+    <string name="menu_stop_live_data">Stop Live Data (Testing)</string>
     <string name="menu_select_obd_device">Select OBD Device</string>
     <string name="text_obd" translatable="false">OBD</string>
     <string name="text_bluetooth" translatable="false">Bluetooth</string>

@@ -1,7 +1,7 @@
 /*
  * TODO put header
  */
-package com.github.pires.obd.reader.io;
+package com.github.pires.obd.reader.model;
 
 import com.github.pires.obd.commands.ObdCommand;
 

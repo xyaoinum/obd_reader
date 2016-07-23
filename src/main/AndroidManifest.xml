@@ -29,10 +29,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <service
-            android:name="com.github.pires.obd.reader.io.ObdGatewayService"
+            android:name=".service.ObdGatewayService"
             android:launchMode="singleInstance"
-            android:exported="false" />
+            android:exported="true">
+        </service>
+
+        <receiver android:name=".service.AlarmReceiver"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 
